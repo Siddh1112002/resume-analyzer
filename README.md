@@ -1,4 +1,5 @@
 ﻿# 🚀 Resume Analyzer – AI-Powered Resume Improvement Tool  
+
 Your resume’s personal AI recruiter – for ATS scoring, skill extraction, suggestions & job-matching.
 
 <p align="center">
@@ -10,28 +11,69 @@ Your resume’s personal AI recruiter – for ATS scoring, skill extraction, sug
 </p>
 
 ## 📌 About the Project  
-This project helps job-seekers instantly improve their resumes using AI.
+This project helps job-seekers instantly improve their resumes using AI.  
+It analyzes a resume PDF, extracts skills, identifies strengths, calculates ATS score, and generates an actionable improvement roadmap.
+
+👉 Built end-to-end by me (Siddhant Hulle) — using a modern production-grade tech stack.
 
 ## ✨ Key Features  
-- AI skill extraction  
-- ATS scoring  
-- Missing skills detection  
-- Job description matching  
-- Export final report to PDF  
-- Fully responsive UI  
-- FastAPI backend  
+### 🧠 AI-Powered Resume Analysis
+- Extracts technical & soft skills  
+- Detects missing skills from job description  
+- Calculates ATS score  
+- Identifies strengths & achievements  
+- Provides step-by-step improvement suggestions  
 
-## 🧰 Tech Stack  
-### Frontend  
-- React  
-- Vite  
+### 📄 Smart PDF Upload & Parsing
+- Upload any resume PDF  
+- Offline fallback PDF  
+- Accurate parsing  
 
-### Backend  
+### 🎯 Job Description Matching
+- Paste any JD → AI finds missing skills  
+
+### 🎨 Modern Premium UI
+- Dark mode  
+- Fully responsive  
+- Mobile-friendly  
+- Clean modern gradience  
+
+### 📥 Download Final Report (PDF)
+- Export full analysis as a clean PDF  
+
+### ⚡ Fast & Reliable Backend
 - Python  
 - FastAPI  
+- Semantic matching  
+- ATS scoring engine  
 
-## 🔧 Installation  
-### Backend  
+## 🧰 Tech Stack  
+### Frontend
+- React 18  
+- Vite  
+- CSS  
+- Responsive UI  
+- PDF generator  
+
+### Backend
+- Python  
+- FastAPI  
+- PDF extraction  
+- AI suggestion engine  
+
+### Tools
+- GitHub  
+- VS Code  
+- PowerShell  
+
+## 🔧 Installation & Running Locally  
+### 1️⃣ Clone the Repo
+\\\ash
+git clone https://github.com/Siddh1112002/resume-analyzer.git
+cd resume-analyzer
+\\\
+
+### Backend Setup
 \\\ash
 cd backend
 python -m venv venv
@@ -40,20 +82,32 @@ pip install -r requirements.txt
 uvicorn app.main:app --reload
 \\\
 
-### Frontend  
+### Frontend Setup
 \\\ash
 cd frontend
 npm install
 npm run dev
 \\\
 
-## 🌍 Deployment Options  
-- Vercel  
-- Netlify  
-- Render  
-- Railway  
+## 🧪 How It Works
+1. Upload PDF  
+2. Paste JD (optional)  
+3. Backend extracts data  
+4. AI generates ATS score + suggestions  
+5. Frontend displays dashboard  
+6. User downloads PDF report  
 
-## 📬 Contact  
+## 📦 Folder Structure  
+\\\
+resume-analyzer/
+│── backend/
+│── frontend/
+│── README.md
+│── .gitignore
+│── .gitattributes
+\\\
+
+## 👤 Author  
 **Siddhant Hulle**  
 GitHub: https://github.com/Siddh1112002  
 
