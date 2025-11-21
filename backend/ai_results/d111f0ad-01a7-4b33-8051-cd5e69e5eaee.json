@@ -1,0 +1,50 @@
+{
+  "ats_score": 100,
+  "skills_found": [
+    "api",
+    "c",
+    "c++",
+    "ci/cd",
+    "css",
+    "express",
+    "git",
+    "github",
+    "html",
+    "java",
+    "javascript",
+    "mongodb",
+    "mysql",
+    "node",
+    "python",
+    "react",
+    "redux",
+    "rest",
+    "spring",
+    "sql",
+    "tailwind",
+    "typescript"
+  ],
+  "soft_skills_found": [
+    "collaboration",
+    "communication",
+    "management",
+    "problem solving",
+    "time management"
+  ],
+  "missing_skills_job": [],
+  "strengths": [
+    "api",
+    "c",
+    "c++",
+    "ci/cd",
+    "css",
+    "express",
+    "git",
+    "github",
+    "html",
+    "java"
+  ],
+  "suggestions": [
+    "Consider adding concrete metrics and projects for the skills listed (links, durations, results)."
+  ]
+}

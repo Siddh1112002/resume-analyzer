@@ -1,0 +1,210 @@
+﻿# analyzer.py
+# Improved deterministic resume analyzer (extract text, match skills, ATS-like score)
+# Requires: PyPDF2 (or pypdf), regex builtin, optionally nltk/spacy for advanced NLP (not needed here).
+
+from typing import List, Dict, Any
+import re
+import os
+from uuid import uuid4
+
+try:
+    # prefer PyPDF2 or pypdf - works similarly
+    from PyPDF2 import PdfReader
+except Exception:
+    # fallback: attempt pypdf
+    from pypdf import PdfReader
+
+# ----- CONFIG: skill dictionaries -----
+# Expand this list as needed (lowercase entries)
+SKILLS = [
+    "python","java","javascript","c","c++","c#","sql","mongodb","mysql","postgresql",
+    "react","redux","node","express","rest","api","html","css","tailwind","bootstrap",
+    "django","flask","aws","azure","docker","kubernetes","tensorflow","pandas","numpy",
+    "git","github","typescript","webpack","jest","mocha","linux","bash","graphql","redis",
+    "spring","hibernate","oracle","mongodb","oracle","reactjs","nextjs","firebase","postgres",
+    "rest api","machine learning","data analysis","data science","etl","spark"
+]
+
+# multiword phrases first (to avoid partial matches)
+PHRASE_SKILLS = sorted([s for s in SKILLS if len(s.split())>1], key=lambda x:-len(x))
+
+SOFT_SKILLS = ["communication","teamwork","collaboration","leadership","management","problem solving","time management","adaptability","creativity"]
+
+# synonyms map (map alternative forms to canonical skill)
+SYNONYMS = {
+    "js": "javascript",
+    "reactjs": "react",
+    "restapi": "rest api",
+    "rest-api": "rest api",
+    "nodejs": "node",
+    "py": "python",
+    "csharp": "c#",
+    "cplusplus": "c++",
+    "aws lambda": "aws",
+    "sql server": "sql",
+    "postgres": "postgresql",
+}
+
+# Required-core keywords (optional) - used to weigh "required" in job description
+CORE_SKILLS = set(["python","javascript","react","node","sql","aws"])
+
+# ----- helpers -----
+WORD_RE = re.compile(r"\b[\w#+\-.]+\b", flags=re.IGNORECASE)
+
+def normalize_text(text: str) -> str:
+    if not text:
+        return ""
+    # remove strange unicode, normalize dashes
+    text = text.replace("\u2013", "-").replace("\u2014","-").replace("\u2019","'")
+    text = text.replace("\xa0"," ")
+    return text.lower()
+
+def extract_text_from_pdf(path: str) -> str:
+    if not os.path.isfile(path):
+        raise FileNotFoundError(f"PDF path not found: {path}")
+    text_parts = []
+    try:
+        reader = PdfReader(path)
+        for p in reader.pages:
+            try:
+                text_parts.append(p.extract_text() or "")
+            except Exception:
+                # some pages may be weird — skip
+                continue
+    except Exception as e:
+        # last-resort: try reading binary and decode guesses
+        raise RuntimeError(f"Failed to read PDF: {e}")
+    return "\n".join(text_parts)
+
+def tokenize_words(text: str) -> List[str]:
+    return WORD_RE.findall(text.lower())
+
+def map_synonym(token: str) -> str:
+    return SYNONYMS.get(token, token)
+
+def find_skills(text: str) -> List[str]:
+    """
+    Return sorted unique skills found in text using phrase-first then tokens.
+    """
+    found = set()
+    ntext = normalize_text(text)
+
+    # check phrase skills (multiword) first
+    for phrase in PHRASE_SKILLS:
+        if phrase in ntext:
+            found.add(SYNONYMS.get(phrase, phrase))
+
+    tokens = tokenize_words(ntext)
+    for t in tokens:
+        t = map_synonym(t)
+        # match simple token skills
+        if t in SKILLS:
+            found.add(t)
+    # also canonicalize with synonyms map keys
+    result = sorted(found)
+    return result
+
+def find_soft_skills(text: str) -> List[str]:
+    ntext = normalize_text(text)
+    found = []
+    for s in SOFT_SKILLS:
+        if s in ntext:
+            found.append(s)
+    return found
+
+def extract_job_skills_from_jd(jd_text: str) -> List[str]:
+    """
+    Very simple extraction: find SKILLS present in the JD.
+    """
+    jd = normalize_text(jd_text or "")
+    found = []
+    # phrase-first
+    for phrase in PHRASE_SKILLS:
+        if phrase in jd:
+            found.append(SYNONYMS.get(phrase, phrase))
+    tokens = tokenize_words(jd)
+    for t in tokens:
+        t = map_synonym(t)
+        if t in SKILLS:
+            found.append(t)
+    return sorted(set(found))
+
+def score_match(resume_skills: List[str], job_skills: List[str]) -> int:
+    """
+    ATS-like score (0-100). If job_skills provided, compute ratio of matched required skills.
+    Else base score on number of core skills found and total skills.
+    """
+    rset = set(resume_skills)
+    jset = set(job_skills)
+
+    if jset:
+        # match ratio
+        matched = rset & jset
+        # weight core skills (if JD mentions core skills)
+        core_in_jd = len([s for s in jset if s in CORE_SKILLS])
+        # compute base ratio
+        ratio = (len(matched) / max(1, len(jset)))
+        # adjust score: core skills presence -> bump
+        boost = 0
+        if core_in_jd > 0:
+            boost = 0.1 * core_in_jd
+        score = int(min(100, max(0, (ratio + boost) * 100)))
+        return score
+    else:
+        # fallback: give some credit for core skills & variety
+        core_found = len([s for s in resume_skills if s in CORE_SKILLS])
+        score = min(100, 10 + len(resume_skills)*6 + core_found*8)
+        return int(score)
+
+def analyze_resume_text(resume_text: str, job_description: str = "") -> Dict[str, Any]:
+    """
+    Main analyzer: extract skills, soft skills, suggestions etc.
+    """
+    rt = normalize_text(resume_text)
+    resume_skills = find_skills(rt)
+    soft = find_soft_skills(rt)
+    strengths = resume_skills[:6]  # quick top strengths (first few)
+    suggestions = []
+
+    # job skills and missing
+    job_skills = extract_job_skills_from_jd(job_description)
+    missing = []
+    if job_skills:
+        missing = sorted([s for s in job_skills if s not in resume_skills])
+
+    # auto-suggestions (simple heuristics)
+    if not resume_skills:
+        suggestions.append("Add a dedicated Skills section listing technical skills (e.g., Python, SQL, React).")
+    else:
+        if len(resume_skills) < 4:
+            suggestions.append("Add more technical keywords in the Skills/Projects sections (tools, languages, frameworks).")
+
+    if not soft:
+        suggestions.append("Add 1-2 soft skills with concrete examples (teamwork, communication).")
+
+    # give generic resume tips
+    suggestions.append("Quantify achievements where possible (e.g., 'reduced load time by 30%' or 'handled 10k requests/day').")
+
+    ats_score = score_match(resume_skills, job_skills)
+
+    return {
+        "ats_score": int(ats_score),
+        "skills_found": resume_skills,
+        "soft_skills_found": soft,
+        "missing_skills_job": missing,
+        "strengths": strengths,
+        "suggestions": suggestions,
+    }
+
+# backward-compat wrapper used by main.py
+def analyze_resume(pdf_path: str = None, pdf_text: str = None, job_description: str = "") -> Dict[str, Any]:
+    """
+    Call with either pdf_path (file on disk) OR pdf_text (already extracted).
+    """
+    if pdf_text:
+        text = pdf_text
+    elif pdf_path:
+        text = extract_text_from_pdf(pdf_path)
+    else:
+        raise RuntimeError("analyze_resume requires either pdf_path or pdf_text")
+    return analyze_resume_text(text, job_description)

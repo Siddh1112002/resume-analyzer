@@ -1,0 +1,54 @@
+/* frontend/src/App.css — polished hybrid UI */
+:root{
+  --bg:#f7fafc; --card:#ffffff; --accent:#6c63ff; --muted:#6b7280;
+  --good:#16a34a; --bad:#ef4444; --pill-bg:#f3f4f6;
+}
+
+*{box-sizing:border-box;font-family:Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;}
+body{background:linear-gradient(180deg,#fbfdff 0%,#f0f4ff 100%);margin:0;color:#0f172a;}
+.app{max-width:1100px;margin:36px auto;padding:28px;}
+.header{display:flex;align-items:center;gap:20px}
+.title{font-size:2.4rem;margin:0;color:#0b1220}
+.subtitle{color:var(--muted);margin-top:6px;font-size:0.95rem}
+
+/* layout */
+.controls{display:flex;gap:20px;align-items:flex-start;margin-top:22px;}
+.column{flex:1;}
+
+/* upload area */
+.uploadBox{background:var(--card);padding:18px;border-radius:12px;box-shadow:0 6px 18px rgba(15,23,42,0.06);}
+.row{display:flex;gap:12px;align-items:center;}
+.inputFile{padding:8px 10px;border-radius:8px;border:1px solid #e6e9ef;background:transparent;}
+.btn{background:var(--accent);color:white;padding:8px 14px;border-radius:8px;border:none;cursor:pointer;}
+.btn.secondary{background:transparent;border:1px solid #dbe4ff;color:#0b1220}
+
+/* analyze area */
+.textarea{width:100%;height:130px;margin-top:12px;padding:12px;border-radius:8px;border:1px solid #e6e9ef;background:white;resize:vertical}
+.small{font-size:0.86rem;color:var(--muted);margin-top:6px}
+
+/* result card */
+.resultWrap{display:flex;gap:18px;margin-top:22px;align-items:flex-start}
+.card{background:var(--card);padding:18px;border-radius:12px;box-shadow:0 10px 30px rgba(11,20,35,0.06);flex-basis:280px}
+.card h4{margin:0 0 8px 0;color:#0b1220}
+.atsScore{font-size:2.6rem;color:var(--accent);font-weight:700}
+.badges{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.pill{background:var(--pill-bg);padding:6px 10px;border-radius:999px;font-size:0.85rem;color:#0f172a;border:1px solid rgba(11,20,35,0.03)}
+
+/* missing */
+.missing{color:var(--bad);margin-top:10px}
+
+/* soft skills */
+.soft{margin-top:8px;display:flex;gap:8px;flex-wrap:wrap}
+
+/* JSON debug */
+.debug{margin-top:18px;background:#fbfbff;padding:12px;border-radius:8px;border:1px solid #eee;max-height:260px;overflow:auto;font-family:monospace;font-size:0.85rem;color:#111}
+
+/* loader */
+.loader{width:18px;height:18px;border-radius:50%;border:3px solid rgba(255,255,255,0.2);border-top-color:var(--accent);animation:spin 1s linear infinite;display:inline-block}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* responsive */
+@media (max-width:880px){
+  .controls{flex-direction:column}
+  .resultWrap{flex-direction:column}
+}

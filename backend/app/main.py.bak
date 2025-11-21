@@ -1,0 +1,161 @@
+from fastapi import FastAPI, UploadFile, File, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+import uuid, os, json
+from typing import Optional, List, Dict
+
+# Attempt to import helper functions from analyzer (keep your existing analyzer.py functions)
+# analyzer.py should provide: extract_text_from_pdf(pdf_path) and analyze_resume(...) 
+# If your analyzer.py uses different names, adapt imports accordingly.
+try:
+    from .analyzer import extract_text_from_pdf, analyze_resume
+except Exception as e:
+    # if import fails, raise a helpful error when uvicorn starts
+    raise ImportError(f"Failed to import from analyzer.py: {e}")
+
+app = FastAPI(title="Resume Analyzer + Job Match (Part5)")
+
+# CORS - add your frontend origins
+origins = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "http://localhost:5175",
+    "http://127.0.0.1:5175",
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+]
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+UPLOAD_DIR = os.path.join(os.path.dirname(__file__), "..", "uploads")
+UPLOAD_DIR = os.path.abspath(UPLOAD_DIR)
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+
+class AnalyzeRequest(BaseModel):
+    pdf_id: Optional[str] = None
+    file_path: Optional[str] = None
+    job_description: Optional[str] = ""
+    force: Optional[bool] = False
+
+@app.get("/health")
+def health():
+    return {"status": "ok", "message": "Resume Analyzer backend healthy"}
+
+@app.post("/upload")
+async def upload(file: UploadFile = File(...)):
+    # Save uploaded file to uploads folder with uuid prefix
+    content = await file.read()
+    uid = str(uuid.uuid4())
+    safe_name = f"{uid}_{file.filename}"
+    dest = os.path.join(UPLOAD_DIR, safe_name)
+    with open(dest, "wb") as f:
+        f.write(content)
+    # return pdf_id (we keep the filename string as pdf_id)
+    return {"pdf_id": safe_name, "filename": file.filename, "size": len(content)}
+
+@app.post("/analyze")
+def analyze(req: AnalyzeRequest):
+    # This route should already exist in your previous version. Keep it but forward to analyze_resume from analyzer.
+    # Accept either pdf_id (uploaded) or file_path (server local)
+    if not req.pdf_id and not req.file_path:
+        raise HTTPException(status_code=400, detail="pdf_id or file_path needed")
+    # resolve to a local path
+    if req.file_path:
+        pdf_path = req.file_path
+    else:
+        # find file in uploads folder that contains pdf_id (exact filename expected)
+        candidate = os.path.join(UPLOAD_DIR, req.pdf_id)
+        if not os.path.exists(candidate):
+            raise HTTPException(status_code=400, detail=f"pdf_id not found: {req.pdf_id}")
+        pdf_path = candidate
+
+    # Use your analyzer.extract_text_from_pdf and analyze_resume functions if available
+    text = extract_text_from_pdf(pdf_path)
+    analysis = analyze_resume(text, job_description=req.job_description or "", force=req.force)
+    return {"pdf_ref": os.path.basename(pdf_path), "analysis": analysis}
+
+# --- PART 5: lightweight job match endpoint using TF-IDF ---
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import linear_kernel
+import re
+
+def simple_tokenize(text: str) -> List[str]:
+    # lowercase, remove punctuation, split on whitespace
+    t = re.sub(r"[^\w\s]", " ", (text or "").lower())
+    return [w for w in t.split() if len(w) > 1]
+
+def top_keywords_from_vector(texts: List[str], top_n=10) -> List[List[str]]:
+    vec = TfidfVectorizer(stop_words="english", ngram_range=(1,2), max_features=5000)
+    X = vec.fit_transform(texts)
+    feature_names = vec.get_feature_names_out()
+    results = []
+    for i in range(X.shape[0]):
+        row = X[i].toarray().flatten()
+        top_ix = row.argsort()[-top_n:][::-1]
+        kws = [feature_names[j] for j in top_ix if row[j] > 0][:top_n]
+        results.append(kws)
+    return results
+
+@app.post("/match")
+def match_job(req: AnalyzeRequest):
+    """
+    Accepts pdf_id OR file_path (server side) and job_description (string).
+    Returns similarity score, top_resume_keywords, top_job_keywords, missing_skills
+    """
+    if not req.job_description:
+        raise HTTPException(status_code=400, detail="job_description is required for /match")
+    # Resolve resume text
+    if req.file_path:
+        pdf_path = req.file_path
+    elif req.pdf_id:
+        candidate = os.path.join(UPLOAD_DIR, req.pdf_id)
+        if not os.path.exists(candidate):
+            raise HTTPException(status_code=400, detail=f"pdf_id not found: {req.pdf_id}")
+        pdf_path = candidate
+    else:
+        raise HTTPException(status_code=400, detail="pdf_id or file_path required")
+
+    # extract text using analyzer helper
+    resume_text = extract_text_from_pdf(pdf_path)
+    job_text = req.job_description
+
+    # Build TF-IDF on [resume, job]
+    vectorizer = TfidfVectorizer(stop_words="english", ngram_range=(1,2), max_features=5000)
+    try:
+        X = vectorizer.fit_transform([resume_text or "", job_text or ""])
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"vectorizer failure: {e}")
+
+    # cosine similarity between resume (0) and job (1)
+    cos = linear_kernel(X[0:1], X[1:2]).flatten()[0]
+    # top keywords for both
+    feature_names = vectorizer.get_feature_names_out()
+    resume_row = X[0].toarray().flatten()
+    job_row = X[1].toarray().flatten()
+
+    topN = 20
+    resume_top_idx = resume_row.argsort()[-topN:][::-1]
+    job_top_idx = job_row.argsort()[-topN:][::-1]
+    resume_kws = [feature_names[i] for i in resume_top_idx if resume_row[i] > 0][:topN]
+    job_kws = [feature_names[i] for i in job_top_idx if job_row[i] > 0][:topN]
+
+    # compute missing skills: job_kws that are not in resume_kws (simple)
+    resume_set = set(resume_kws)
+    missing = [k for k in job_kws if k not in resume_set]
+
+    # Return human-friendly score (0-100)
+    score_pct = round(float(cos) * 100, 1)
+
+    return {
+        "pdf_ref": os.path.basename(pdf_path),
+        "match_score": score_pct,
+        "similarity": float(cos),
+        "resume_keywords": resume_kws,
+        "job_keywords": job_kws,
+        "missing_skills": missing,
+    }

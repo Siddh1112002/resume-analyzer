@@ -1,0 +1,165 @@
+﻿import React, { useEffect, useState } from "react";
+import "./App.css";
+
+const API = "http://127.0.0.1:8000";
+
+export default function App() {
+  const [status, setStatus] = useState("checking...");
+  const [file, setFile] = useState(null);
+  const [pdfId, setPdfId] = useState(null);
+  const [uploading, setUploading] = useState(false);
+  const [analyzing, setAnalyzing] = useState(false);
+  const [jobText, setJobText] = useState("");
+  const [analysis, setAnalysis] = useState(null);
+  const [error, setError] = useState(null);
+
+  useEffect(() => { checkHealth(); }, []);
+
+  async function checkHealth() {
+    try {
+      const res = await fetch(`${API}/health`);
+      const j = await res.json();
+      setStatus("ok");
+    } catch (e) {
+      setStatus("unreachable");
+    }
+  }
+
+  function onFileChange(e) {
+    setFile(e.target.files?.[0] ?? null);
+    setPdfId(null);
+    setAnalysis(null);
+  }
+
+  async function uploadFile() {
+    if (!file) { alert("Select a PDF first"); return; }
+    setUploading(true); setError(null);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch(`${API}/upload`, { method: "POST", body: fd });
+      if (!res.ok) { const txt = await res.text(); throw new Error(txt || res.statusText); }
+      const j = await res.json();
+      setPdfId(j.pdf_id);
+      setAnalysis(null);
+    } catch (err) {
+      setError("Upload failed: " + (err.message || err));
+      alert("Upload failed: " + (err.message || err));
+    } finally { setUploading(false); }
+  }
+
+  async function analyzeUploaded(force=false) {
+    setAnalyzing(true); setError(null);
+    try {
+      const payload = pdfId ? { pdf_id: pdfId, job_description: jobText || "", force } : { file_path: "/mnt/data/Siddhant_Hulle_Resume.pdf", job_description: jobText || "" };
+      const res = await fetch(`${API}/analyze`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      if (!res.ok) {
+        const txt = await res.text().catch(()=>null);
+        throw new Error(txt || res.statusText);
+      }
+      const j = await res.json();
+      setAnalysis(j);
+    } catch (err) {
+      setError("Analysis failed: " + (err.message || err));
+      alert("Analysis failed: " + (err.message || err));
+    } finally { setAnalyzing(false); }
+  }
+
+  const getATSScore = () => {
+    try { return analysis?.analysis?.ats_score ?? 0; } catch { return 0; }
+  };
+
+  return (
+    <div className="app-root">
+      <header className="topbar">
+        <div className="brand">
+          <h1>Resume Analyzer</h1>
+          <div className="tag">Smart • Polished • Deployable</div>
+        </div>
+        <div className={"status " + (status === "ok" ? "ok" : "bad")}>
+          { status === "ok" ? "Backend healthy" : "Backend unreachable" }
+        </div>
+      </header>
+
+      <main className="main-grid">
+        <section className="card upload-card">
+          <h3>Upload & Job Description</h3>
+
+          <div className="upload-row">
+            <input type="file" accept="application/pdf" onChange={onFileChange} />
+            <button className="btn primary" onClick={uploadFile} disabled={uploading}>
+              {uploading ? "Uploading..." : "Upload"}
+            </button>
+          </div>
+
+          <div className="pdf-id">Selected pdf_id: <span>{pdfId ?? "(none)"}</span></div>
+
+          <label className="label">Job description / JD (optional)</label>
+          <textarea value={jobText} onChange={(e)=>setJobText(e.target.value)} placeholder="Paste job description to match (optional)" />
+
+          <div className="actions">
+            <button className="btn primary" onClick={()=>analyzeUploaded(false)} disabled={analyzing}>
+              {analyzing ? "Analyzing..." : "Analyze"}
+            </button>
+            {/* Match JD button removed (duplicate). Keep UI minimal. */}
+          </div>
+
+          <div className="hint">Tip: Upload a resume first. This UI is polished and deploy-ready.</div>
+        </section>
+
+        <section className="card summary-card">
+          <h3>Match Summary</h3>
+
+          <div className="score-row">
+            <div className="score-box">{getATSScore()}</div>
+            <div className="progress-area">
+              <div className="small">Match quality</div>
+              <div className="bar">
+                <div className="bar-fill" style={{width: Math.min(100, getATSScore()) + "%"}}></div>
+              </div>
+            </div>
+          </div>
+
+          <div className="missing">
+            <div className="small">Missing skills (job)</div>
+            <div className="missing-list">{analysis?.analysis?.missing_skills_job?.length ? analysis.analysis.missing_skills_job.join(", ") : <em>None</em>}</div>
+          </div>
+
+          <div className="top-suggestions">
+            <h4>Top Suggestions</h4>
+            <ol>
+              {(analysis?.analysis?.suggestions && analysis.analysis.suggestions.length) ?
+                analysis.analysis.suggestions.slice(0,6).map((s,i)=> <li key={i}>{s}</li>)
+                : <li>No suggestions from analyzer yet.</li>
+              }
+            </ol>
+          </div>
+        </section>
+
+        <aside className="card right-card">
+          <h3>Skills & Debug</h3>
+
+          <div className="badges">
+            {(analysis?.analysis?.skills_found || []).map((s,i) => <span className="pill" key={i}>{s}</span>)}
+            {!(analysis?.analysis?.skills_found || []).length && <div className="muted">No skills detected yet.</div>}
+          </div>
+
+          <div className="soft">
+            <div className="label">Soft skills</div>
+            {(analysis?.analysis?.soft_skills_found || []).map((s,i)=><span className="pill soft" key={i}>{s}</span>)}
+            {!(analysis?.analysis?.soft_skills_found || []).length && <div className="muted">None detected</div>}
+          </div>
+
+          <div className="debug-toggle">
+            <label><input type="checkbox" onChange={(e)=>{ const show = e.target.checked; if (!show) { setAnalysis(prev => prev); }}} /> Raw JSON (debug)</label>
+            <pre className="raw">{JSON.stringify(analysis || {}, null, 2)}</pre>
+          </div>
+        </aside>
+      </main>
+    </div>
+  );
+}

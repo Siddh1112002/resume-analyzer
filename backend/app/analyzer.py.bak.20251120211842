@@ -1,0 +1,108 @@
+﻿# -*- coding: utf-8 -*-
+from .suggestions_plugin import build_suggestions
+from . import semantic
+from . import analytics
+
+import os, re, uuid
+from typing import Optional, List, Dict
+from PyPDF2 import PdfReader
+
+# Core curated lists (extendable)
+SKILLS_LIST = [
+    "python","java","c","c++","javascript","react","node","express","mongodb",
+    "sql","mysql","html","css","git","docker","aws","pandas","numpy",
+    "tensorflow","scikit-learn","rest","api","typescript","tailwind","redux","flask","fastapi"
+]
+
+SOFT_SKILLS = [
+    "communication","teamwork","problem solving","leadership","time management",
+    "management","collaboration","adaptability"
+]
+
+def extract_text_from_pdf(path: str) -> str:
+    if not os.path.exists(path):
+        raise RuntimeError(f"PDF path not found: {path}")
+    reader = PdfReader(path)
+    pages = []
+    for p in reader.pages:
+        t = p.extract_text()
+        if t: pages.append(t)
+    return "\n".join(pages)
+
+def _match_lexical(text: str, candidates: List[str]) -> List[str]:
+    t = (text or "").lower()
+    found = []
+    for w in candidates:
+        if re.search(r"\b" + re.escape(w.lower()) + r"\b", t):
+            found.append(w)
+    return sorted(set(found))
+
+def analyze_resume(pdf_path: Optional[str] = None, pdf_text: Optional[str] = None, job_description: str = "") -> Dict:
+    """
+    Returns a combined analysis that includes:
+      - analytics.full_analytics_from_text(...) breakdown
+      - semantic matching for skills (if model available)
+      - suggestions via suggestions_plugin
+    """
+    if pdf_text is None:
+        if not pdf_path:
+            raise RuntimeError("Provide pdf_path or pdf_text")
+        text = extract_text_from_pdf(pdf_path)
+    else:
+        text = pdf_text
+
+    # Basic lexical matches
+    skills_lex = _match_lexical(text, SKILLS_LIST)
+    soft_lex = _match_lexical(text, SOFT_SKILLS)
+
+    # Semantic matching: score candidates vs resume text
+    sem_results = semantic.semantic_matches(text, SKILLS_LIST, top_k=50)
+    # sem_results is list of (skill, score)
+    sem_skills = [s for s,score in sem_results if score >= 50]  # threshold 50/100
+
+    # merge lexical + semantic (union)
+    skills_found = sorted(set(skills_lex) | set(sem_skills))
+    soft_found = soft_lex
+
+    # Job description matching (semantic if available)
+    jd_skills = []
+    if job_description:
+        jd_sem = semantic.semantic_matches(job_description, SKILLS_LIST, top_k=50)
+        jd_sem_skills = [s for s,score in jd_sem if score >= 50]
+        jd_lex = _match_lexical(job_description, SKILLS_LIST)
+        jd_skills = sorted(set(jd_sem_skills) | set(jd_lex))
+
+    # ATS score: more nuanced: use analytics prominence+skill count
+    base_ats = int(round(100.0 * len(skills_found) / max(1, len(SKILLS_LIST))))
+    # combine with analytics score breakdown
+    analytics_data = analytics.full_analytics_from_text(text, skills_found, job_description)
+    breakdown = analytics_data.get("breakdown", {})
+    # normalized final score: mix base skill match + analytic total (weights)
+    final_score = int(round(0.55 * base_ats + 0.35 * breakdown.get("total", base_ats) + 0.10 * min(100, analytics_data.get("prominence",0)*5)))
+    final_score = max(0, min(100, final_score))
+
+    missing_skills = sorted([s for s in (jd_skills or []) if s not in skills_found])
+    strengths = skills_found[:8]
+
+    # suggestions use plugin + analytic hints
+    try:
+        suggestions = build_suggestions(skills_found, missing_skills, strengths, text)
+    except Exception as e:
+        suggestions = [f"Suggestion generation error: {e}"]
+
+    # Add analytic-driven suggestion examples
+    if analytics_data.get("years_experience_est", 0) < 2:
+        suggestions.append("If you are junior (<2y), highlight internships/projects with months and outcomes.")
+    if analytics_data.get("readability_flesch", 100) < 40:
+        suggestions.append("Resume language is dense — shorten bullets and use clearer verbs for readability.")
+
+    result = {
+        "ats_score": final_score,
+        "skills_found": skills_found,
+        "soft_skills_found": soft_found,
+        "missing_skills_job": missing_skills,
+        "strengths": strengths,
+        "analytics": analytics_data,
+        "suggestions": suggestions
+    }
+    return result

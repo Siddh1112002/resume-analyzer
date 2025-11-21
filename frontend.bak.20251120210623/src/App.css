@@ -1,0 +1,40 @@
+﻿:root{
+  --bg:#f8fafc; --card:#ffffff; --muted:#64748b; --accent:#7c3aed; --bad:#ef4444;
+  --pill-bg:#f1f5f9; --pill-border:#e2e8f0;
+}
+*{box-sizing:border-box}
+body,html,#root{height:100%;margin:0;font-family:Inter,system-ui,Arial,Helvetica,sans-serif;background:var(--bg);color:#0f172a}
+.ra-header{padding:28px 40px}
+.ra-header h1{margin:0;font-size:28px}
+.ra-sub{color:var(--muted);margin-top:6px}
+
+.ra-main{display:flex;gap:20px;padding:20px 40px}
+.ra-panel{width:320px}
+.ra-left .upload-row{display:flex;gap:10px;align-items:center;margin-top:8px}
+.label{font-weight:600;margin-bottom:6px;display:block}
+input[type="file"]{border-radius:6px;padding:6px}
+textarea{width:100%;min-height:110px;border:1px solid #e6eef8;padding:10px;border-radius:8px;background:#fff}
+.actions{display:flex;gap:10px;margin-top:10px}
+.btn{background:var(--accent);color:#fff;padding:8px 12px;border-radius:8px;border:none;cursor:pointer}
+.btn.outline{background:#fff;border:1px solid #e6eef8;color:#0f172a}
+.btn.primary{background:linear-gradient(90deg,var(--accent),#4f46e5);box-shadow:0 6px 18px rgba(79,70,229,0.08)}
+.hint{color:var(--muted);font-size:13px;margin-top:8px}
+.mono{font-family:monospace;background:#fff;padding:2px 6px;border-radius:4px}
+
+.ra-center{flex:1;display:flex;flex-direction:column;gap:14px}
+.card{background:var(--card);padding:18px;border-radius:12px;box-shadow:0 6px 18px rgba(12,18,29,0.04)}
+.score-card{display:flex;gap:18px;align-items:center}
+.big-score{font-size:36px;font-weight:700;color:var(--accent)}
+.progress{height:10px;background:#f1f5f9;border-radius:8px;margin-top:6px}
+.progress .bar{height:100%;background:linear-gradient(90deg,var(--accent),#4f46e5);border-radius:8px}
+.missing{margin-top:10px;color:var(--muted)}
+.bad{color:var(--bad);font-weight:600}
+
+.suggestions-card ul{margin:0;padding-left:18px}
+.pill{display:inline-block;background:var(--pill-bg);border:1px solid var(--pill-border);padding:6px 10px;border-radius:999px;margin:6px 6px 0 0}
+.pill.soft{background:#fff7ed;border-color:#fde68a}
+.badges{min-height:44px}
+
+.raw{max-height:260px;overflow:auto;background:#0b1220;color:#cbd5e1;padding:12px;border-radius:8px}
+.muted{color:var(--muted)}
+.raw-toggle{margin-top:14px;font-size:13px;color:var(--muted)}

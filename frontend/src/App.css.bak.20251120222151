@@ -1,0 +1,32 @@
+﻿:root{
+  --bg: #f6f8fb;
+  --card: #ffffff;
+  --muted: #6b7280;
+  --accent: #4f46e5;
+  --text: #0f172a;
+  --good: #16a34a;
+  --bad: #ef4444;
+}
+*{box-sizing:border-box}
+html,body,#root{height:100%}
+body{margin:0;font-family:Inter,Arial,sans-serif;color:var(--text);background:var(--bg)}
+.app{max-width:1100px;margin:28px auto;padding:24px}
+.header{display:flex;justify-content:space-between;align-items:center}
+.title{font-size:22px;color:var(--accent);font-weight:700;margin:0}
+.subtitle{color:var(--muted);font-size:13px}
+.controls{display:flex;gap:22px;align-items:flex-start;margin-top:18px}
+.column{width:380px}
+.uploadBox{background:var(--card);padding:16px;border-radius:12px;box-shadow:0 8px 24px rgba(15,23,42,0.06)}
+.inputFile{display:block}
+.btn{background:linear-gradient(90deg,var(--accent),#7c3aed);color:white;border:0;padding:8px 12px;border-radius:8px;cursor:pointer;font-weight:600}
+.btn.secondary{background:transparent;color:var(--accent);border:1px solid rgba(79,70,229,0.12)}
+.loader{display:inline-block;width:14px;height:14px;border-radius:50%;border:2px solid rgba(255,255,255,0.6);border-top-color:transparent;animation:spin .9s linear infinite}
+@keyframes spin {to{transform:rotate(360deg)}}
+.card{background:var(--card);border-radius:12px;padding:16px;box-shadow:0 6px 18px rgba(15,23,42,0.04);margin-bottom:12px}
+.atsScore{width:72px;height:72px;border-radius:12px;background:linear-gradient(180deg,#fff,#f8fafc);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:20px}
+.pill{display:inline-block;padding:6px 10px;border-radius:999px;background:#f1f5f9;margin:6px 6px 0 0;font-weight:600;color:var(--text);font-size:13px}
+.small{font-size:12px;color:var(--muted)}
+.missing{min-height:40px;color:var(--muted)}
+.resultWrap{display:flex;gap:12px;align-items:flex-start}
+.debug{margin-top:12px;background:#0f172a0a;padding:10px;border-radius:8px;max-height:220px;overflow:auto;font-family:monospace;font-size:12px;color:#0f172a}
+.footer{margin-top:18px;color:var(--muted);font-size:12px;text-align:center}

@@ -1,0 +1,84 @@
+{
+  "ats_score": 100,
+  "skills_found": [
+    "api",
+    "c",
+    "c++",
+    "css",
+    "express",
+    "git",
+    "github",
+    "html",
+    "java",
+    "javascript",
+    "mongodb",
+    "mysql",
+    "node",
+    "python",
+    "react",
+    "redux",
+    "rest",
+    "spring",
+    "sql",
+    "tailwind",
+    "typescript"
+  ],
+  "soft_skills_found": [
+    "collaboration",
+    "communication",
+    "management",
+    "problem solving",
+    "time management"
+  ],
+  "missing_skills_job": [
+    "aws",
+    "docker"
+  ],
+  "strengths": [
+    "api",
+    "c",
+    "c++",
+    "css",
+    "express",
+    "git",
+    "github",
+    "html",
+    "java",
+    "javascript",
+    "mongodb",
+    "mysql"
+  ],
+  "suggestions": [
+    "Add or highlight 'aws' in Skills/Projects/Experience sections.",
+    "Add or highlight 'docker' in Skills/Projects/Experience sections."
+  ],
+  "debug": {
+    "has_skills_section": true,
+    "prominence": 40,
+    "action_score": 1,
+    "experience_signal": 5,
+    "freqs": {
+      "api": 3,
+      "c": 3,
+      "c++": 0,
+      "css": 2,
+      "express": 4,
+      "git": 2,
+      "github": 2,
+      "html": 1,
+      "java": 2,
+      "javascript": 3,
+      "mongodb": 3,
+      "mysql": 1,
+      "node": 5,
+      "python": 3,
+      "react": 5,
+      "redux": 2,
+      "rest": 0,
+      "spring": 0,
+      "sql": 1,
+      "tailwind": 1,
+      "typescript": 2
+    }
+  }
+}

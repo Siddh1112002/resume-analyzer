@@ -1,0 +1,181 @@
+﻿import React, { useEffect, useState } from "react";
+
+const API = "http://127.0.0.1:8000";
+
+function Badge({children, className=""}) {
+  return <span className={"badge "+className}>{children}</span>;
+}
+
+export default function App(){
+  const [status, setStatus] = useState("checking...");
+  const [file, setFile] = useState(null);
+  const [pdfId, setPdfId] = useState(null);
+  const [uploading, setUploading] = useState(false);
+  const [analyzing, setAnalyzing] = useState(false);
+  const [jobText, setJobText] = useState("");
+  const [analysis, setAnalysis] = useState(null);
+  const [error, setError] = useState(null);
+
+  useEffect(()=>{ checkHealth(); }, []);
+
+  async function checkHealth(){
+    try{
+      const res = await fetch(`${API}/health`);
+      const j = await res.json();
+      // do not display backend status in UI header (user requested removal),
+      // keep status for internal debug only
+      setStatus(j.status ?? "ok");
+    }catch(e){
+      setStatus("unreachable");
+    }
+  }
+
+  function onFileChange(e){
+    setFile(e.target.files?.[0] ?? null);
+    setPdfId(null);
+    setAnalysis(null);
+  }
+
+  async function uploadFile(){
+    if(!file){ alert("Select a PDF first"); return; }
+    setUploading(true);
+    setError(null);
+    try{
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch(`${API}/upload`, { method:"POST", body:fd });
+      if(!res.ok){
+        const txt = await res.text();
+        throw new Error(txt || res.statusText);
+      }
+      const j = await res.json();
+      setPdfId(j.pdf_id);
+      setAnalysis(null);
+    }catch(err){
+      setError("Upload failed: " + (err.message || err));
+      alert("Upload failed: " + (err.message || err));
+    }finally{ setUploading(false); }
+  }
+
+  async function analyzeMatch(matchJD=false){
+    setAnalyzing(true); setError(null);
+    try{
+      // use uploaded pdf if available; otherwise require user to upload
+      if (!pdfId) { alert("Please upload a resume first."); setAnalyzing(false); return; }
+      const payload = { pdf_id: pdfId, job_description: jobText || "", force: matchJD };
+      const res = await fetch(`${API}/analyze`, {
+        method:"POST",
+        headers: { "Content-Type":"application/json" },
+        body: JSON.stringify(payload)
+      });
+      if(!res.ok){
+        const txt = await res.text().catch(()=>null);
+        throw new Error(txt || res.statusText);
+      }
+      const j = await res.json();
+      setAnalysis(j);
+    }catch(err){
+      setError("Analysis failed: " + (err.message || err));
+      alert("Analysis failed: " + (err.message || err));
+    }finally{ setAnalyzing(false); }
+  }
+
+  const getATS = () => {
+    return analysis?.analysis?.ats_score ?? 0;
+  };
+
+  const skills = analysis?.analysis?.skills_found ?? [];
+  const soft = analysis?.analysis?.soft_skills_found ?? [];
+  const missing = analysis?.analysis?.missing_skills_job ?? [];
+  const suggestions = analysis?.analysis?.suggestions ?? [];
+
+  return (
+    <div className="page">
+      <header className="topbar">
+        <div className="brand">Resume Analyzer</div>
+        <div className="top-actions">
+          {/* removed backend status UI element per request */}
+        </div>
+      </header>
+
+      <main className="grid">
+        <section className="panel left">
+          <h3>Upload & Job Description</h3>
+          <div className="small muted">Selected pdf_id: <strong>{pdfId ?? "(none)"}</strong></div>
+
+          <div className="upload-row">
+            <input type="file" accept="application/pdf" onChange={onFileChange} />
+            <button className="btn primary" onClick={uploadFile} disabled={uploading}>
+              {uploading ? "Uploading..." : "Upload"}
+            </button>
+          </div>
+
+          <label className="label">Job description / JD (optional)</label>
+          <textarea value={jobText} onChange={e=>setJobText(e.target.value)} rows={8} placeholder="Paste job description to match (optional)"></textarea>
+
+          <div style={{display:"flex",gap:12,marginTop:12}}>
+            <button className="btn action" onClick={()=>analyzeMatch(false)} disabled={analyzing || !pdfId}>
+              {analyzing ? "Analyzing..." : "Analyze"}
+            </button>
+            <button className="btn ghost" onClick={()=>analyzeMatch(true)} disabled={analyzing || !pdfId}>
+              {analyzing ? "Matching..." : "Match JD"}
+            </button>
+          </div>
+
+          <div className="muted note" style={{marginTop:14}}>
+            Tip: Upload a resume first. This UI is polished and deploy-ready.
+          </div>
+        </section>
+
+        <section className="panel center">
+          <h3>Match Summary</h3>
+          <div className="summary">
+            <div className="score">{getATS()}</div>
+            <div className="meter">
+              <div className="bar" style={{width: Math.min(100,getATS()) + "%"}} />
+            </div>
+          </div>
+
+          <div className="missing">
+            <strong>Missing skills (job)</strong>
+            <div className="missing-list">{missing.length ? missing.join(", ") : <em>None</em>}</div>
+          </div>
+
+          <div className="suggestions">
+            <h4>Top Suggestions</h4>
+            {suggestions.length ? (
+              <ol>
+                {suggestions.map((s,i)=> <li key={i}>{s}</li>)}
+              </ol>
+            ) : <div className="muted">No suggestions from analyzer yet.</div>}
+          </div>
+        </section>
+
+        <aside className="panel right">
+          <h3>Skills & Debug</h3>
+          <div className="badges">
+            {skills.length ? skills.map((s,i)=>(<Badge key={i}>{s}</Badge>)) : <div className="muted">No skills detected yet.</div>}
+          </div>
+
+          <div style={{marginTop:12}}>
+            <strong className="small">Soft skills</strong>
+            <div className="soft">
+              {soft.length ? soft.map((s,i)=>(<Badge key={i} className="soft">{s}</Badge>)) : <div className="muted">None detected</div>}
+            </div>
+          </div>
+
+          <div style={{marginTop:12}}>
+            <label><input type="checkbox" onChange={e=>{ if (!e.target.checked) { setAnalysis(prev=>prev); } }} /> Raw JSON (debug)</label>
+            <div className="debug">
+              <pre>{JSON.stringify(analysis || {}, null, 2)}</pre>
+            </div>
+          </div>
+        </aside>
+      </main>
+
+      <footer className="footer">
+        <div>Professional UI • Easy to deploy</div>
+      </footer>
+    </div>
+  );
+}

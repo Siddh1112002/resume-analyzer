@@ -1,0 +1,40 @@
+{
+  "ats_score": 100,
+  "skills_found": [
+    "python",
+    "java",
+    "c",
+    "c++",
+    "javascript",
+    "react",
+    "node",
+    "express",
+    "sql",
+    "mysql",
+    "mongodb",
+    "git",
+    "html",
+    "css"
+  ],
+  "soft_skills_found": [
+    "communication",
+    "problem solving",
+    "time management",
+    "management",
+    "collaboration"
+  ],
+  "missing_skills_job": [],
+  "strengths": [
+    "python",
+    "java",
+    "c",
+    "c++",
+    "javascript",
+    "react",
+    "node",
+    "express",
+    "sql",
+    "mysql"
+  ],
+  "suggestions": []
+}

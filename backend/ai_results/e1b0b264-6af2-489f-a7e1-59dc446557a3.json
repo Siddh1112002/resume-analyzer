@@ -1,0 +1,27 @@
+{
+  "ats_score": 76,
+  "breakdown": {
+    "skill_score": 60.0,
+    "experience_score": 0.0,
+    "education_score": 6.0,
+    "quality_score": 10.0,
+    "semantic_bonus": 0.0,
+    "years_experience": 0.0,
+    "detected_skills": [
+      "api",
+      "c",
+      "css",
+      "express",
+      "git",
+      "html",
+      "java",
+      "javascript",
+      "mongodb",
+      "node",
+      "python",
+      "react",
+      "sql"
+    ],
+    "required_jd_skills": []
+  }
+}

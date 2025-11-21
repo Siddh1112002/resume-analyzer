@@ -1,0 +1,152 @@
+﻿import React, { useEffect, useState } from "react";
+import "./App.css";
+
+const API = "http://127.0.0.1:8000";
+
+export default function App() {
+  const [status, setStatus] = useState("checking...");
+  const [file, setFile] = useState(null);
+  const [pdfId, setPdfId] = useState(null);
+  const [uploading, setUploading] = useState(false);
+  const [analyzing, setAnalyzing] = useState(false);
+  const [jobText, setJobText] = useState("");
+  const [analysis, setAnalysis] = useState(null);
+  const [error, setError] = useState(null);
+
+  useEffect(()=>{ checkHealth(); }, []);
+
+  async function checkHealth(){
+    try{
+      const res = await fetch(`${API}/health`);
+      const j = await res.json();
+      setStatus("ok");
+    }catch(e){
+      setStatus("offline");
+    }
+  }
+
+  function onFileChange(e){
+    setFile(e.target.files?.[0] ?? null);
+    setPdfId(null);
+    setAnalysis(null);
+  }
+
+  async function uploadFile(){
+    if(!file){ alert("Select a PDF first"); return; }
+    setUploading(true);
+    setError(null);
+    try{
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch(`${API}/upload`, { method:"POST", body:fd });
+      if(!res.ok) throw new Error(await res.text());
+      const j = await res.json();
+      setPdfId(j.pdf_id);
+      setAnalysis(null);
+    }catch(err){
+      setError("Upload failed: " + (err.message || err));
+      alert("Upload failed: " + (err.message || err));
+    }finally{ setUploading(false); }
+  }
+
+  async function analyzeUploaded(force=false){
+    setAnalyzing(true); setError(null);
+    try{
+      const payload = pdfId ? { pdf_id: pdfId, job_description: jobText || "", force } : { file_path: "/mnt/data/Siddhant_Hulle_Resume.pdf", job_description: jobText || "" };
+      const res = await fetch(`${API}/analyze`, {
+        method:"POST",
+        headers: { "Content-Type":"application/json" },
+        body: JSON.stringify(payload)
+      });
+      if(!res.ok){
+        const txt = await res.text().catch(()=>null);
+        throw new Error(txt || res.statusText);
+      }
+      const j = await res.json();
+      setAnalysis(j);
+    }catch(err){
+      setError("Analysis failed: " + (err.message || err));
+      alert("Analysis failed: " + (err.message || err));
+    }finally{ setAnalyzing(false); }
+  }
+
+  const getATSScore = () => {
+    try { return analysis?.analysis?.ats_score ?? 0; } catch { return 0; }
+  };
+
+  return (
+    <div className="page">
+      <header className="topbar">
+        <h1 className="brand">Resume Analyzer</h1>
+        <div className={"status " + (status==="ok" ? "online":"offline")}>{status==="ok" ? "Backend: online" : "Backend: offline"}</div>
+      </header>
+
+      <main className="layout">
+        <aside className="panel left">
+          <h3>Upload & Job Description</h3>
+          <label className="fileLabel">Choose PDF</label>
+          <div className="fileRow">
+            <input type="file" accept="application/pdf" onChange={onFileChange} />
+            <button className="btn primary" onClick={uploadFile} disabled={uploading}>{uploading ? "Uploading..." : "Upload"}</button>
+          </div>
+          <div className="pdfId">{pdfId ? `Selected: ${pdfId}` : "No file uploaded"}</div>
+
+          <label className="jdLabel">Job description (optional)</label>
+          <textarea placeholder="Paste job description to match (optional)" value={jobText} onChange={(e)=>setJobText(e.target.value)} />
+
+          <div className="actions">
+            <button className="btn primary" onClick={()=>analyzeUploaded(false)} disabled={analyzing}>{analyzing ? "Analyzing..." : "Analyze"}</button>
+            <button className="btn" onClick={() => { setFile(null); setPdfId(null); setJobText(""); setAnalysis(null); setError(null); }}>Reset</button>
+          </div>
+
+          <div className="hint">Tip: Upload a resume first. If none uploaded, the server sample will be used.</div>
+        </aside>
+
+        <section className="panel center">
+          <div className="ats">
+            <div className="atsBox">
+              <div className="atsValue">{getATSScore()}</div>
+              <div className="atsLabel">ATS Score</div>
+            </div>
+            <div className="progressArea">
+              <div className="progressBar">
+                <div className="progressFill" style={{width: Math.min(100, getATSScore()) + "%"}} />
+              </div>
+              <div className="missing">{analysis?.analysis?.missing_skills_job?.length ? <span className="missingList">{analysis.analysis.missing_skills_job.join(", ")}</span> : <span className="none">None</span>}</div>
+            </div>
+          </div>
+
+          <div className="suggestions">
+            <h4>Top suggestions</h4>
+            { (analysis?.analysis?.suggestions || []).length ? (
+              <ol>
+                {analysis.analysis.suggestions.map((s,i)=> <li key={i}>{s}</li>)}
+              </ol>
+            ) : (
+              <div className="noSuggestions">No suggestions from analyzer yet.</div>
+            )}
+          </div>
+        </section>
+
+        <aside className="panel right">
+          <h3>Skills</h3>
+          <div className="badges">
+            {(analysis?.analysis?.skills_found || []).map((s,i) => <span key={i} className="pill">{s}</span>)}
+            {(!(analysis?.analysis?.skills_found || []).length) && <div className="noSkills">No skills detected yet.</div>}
+          </div>
+
+          <h4>Soft skills</h4>
+          <div className="soft">
+            {(analysis?.analysis?.soft_skills_found || []).map((s,i)=> <span key={i} className="pill softpill">{s}</span>)}
+            {(!(analysis?.analysis?.soft_skills_found || []).length) && <div className="noSkills">None detected</div>}
+          </div>
+
+          <details className="debugBox">
+            <summary>Debug JSON</summary>
+            <pre>{JSON.stringify(analysis || {}, null, 2)}</pre>
+          </details>
+        </aside>
+      </main>
+    </div>
+  );
+}

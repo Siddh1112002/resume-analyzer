@@ -1,0 +1,25 @@
+﻿:root{--bg:#0f1724;--card:#0b1220;--accent:#7c3aed;--muted:#9aa4b2;--good:#10b981;--warn:#f59e0b;--bad:#ef4444}
+*{box-sizing:border-box} body{margin:0;font-family:Inter,Segoe UI,Roboto,Arial;background:linear-gradient(180deg,#071024,#07102a);color:#e7eefc}
+.magic-hero{display:flex;justify-content:space-between;align-items:center;padding:28px 40px}
+.magic-hero .accent{color:var(--accent)}
+.status{padding:8px 12px;border-radius:999px;background:rgba(255,255,255,0.03)}
+.status.ok{color:var(--good)} .status.bad{color:var(--bad)}
+.magic-grid{display:grid;grid-template-columns:300px 1fr 320px;gap:20px;padding:28px}
+.card{background:var(--card);border-radius:12px;padding:18px;box-shadow:0 10px 30px rgba(2,6,23,0.6)}
+.left input[type=file]{display:block;margin-bottom:10px}
+.left textarea{width:100%;min-height:100px;border-radius:8px;padding:10px;background:transparent;border:1px solid rgba(255,255,255,0.03);color:inherit}
+.row{display:flex;gap:10px;margin-top:12px}
+.btn{padding:10px 14px;border-radius:10px;border:none;cursor:pointer;font-weight:700}
+.btn.primary{background:linear-gradient(90deg,var(--accent),#a78bfa);color:#07102a}
+.fileline{color:var(--muted);margin-bottom:8px}
+.circle{width:84px;height:84px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:30px;font-weight:800;background:rgba(255,255,255,0.02)}
+.circle.g{box-shadow:0 10px 30px rgba(16,185,129,0.08);color:var(--good)}
+.circle.a{box-shadow:0 10px 30px rgba(245,158,11,0.08);color:var(--warn)}
+.circle.r{box-shadow:0 10px 30px rgba(239,68,68,0.08);color:var(--bad)}
+.bar{height:14px;background:rgba(255,255,255,0.02);border-radius:999px;overflow:hidden;margin-top:12px}
+.fill{height:100%;background:linear-gradient(90deg,var(--accent),#a78bfa);transition:width 700ms}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{background:rgba(255,255,255,0.03);padding:6px 10px;border-radius:999px}
+.muted{color:var(--muted)}
+.toast{position:fixed;right:20px;bottom:20px;background:#0b1220;padding:10px 14px;border-radius:8px;color:#fff}
+@media (max-width:980px){ .magic-grid{grid-template-columns:1fr; padding:16px} }

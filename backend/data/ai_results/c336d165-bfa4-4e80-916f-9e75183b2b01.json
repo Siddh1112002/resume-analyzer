@@ -1,0 +1,41 @@
+{
+  "pdf_ref": "c336d165-bfa4-4e80-916f-9e75183b2b01",
+  "analysis": {
+    "ats_score": 65,
+    "skills_found": [
+      "python",
+      "java",
+      "c",
+      "sql",
+      "javascript",
+      "react",
+      "node",
+      "express",
+      "mongodb",
+      "mysql",
+      "html",
+      "css",
+      "git"
+    ],
+    "soft_skills_found": [
+      "communication",
+      "problem solving",
+      "time management"
+    ],
+    "missing_skills_job": [],
+    "strengths": [
+      "python",
+      "java",
+      "c",
+      "sql",
+      "javascript",
+      "react",
+      "node",
+      "express",
+      "communication",
+      "problem solving",
+      "time management"
+    ],
+    "suggestions": []
+  }
+}

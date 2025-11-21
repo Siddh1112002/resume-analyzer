@@ -1,0 +1,4 @@
+﻿fastapi
+uvicorn
+PyPDF2
+python-dotenv

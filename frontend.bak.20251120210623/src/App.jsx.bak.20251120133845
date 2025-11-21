@@ -1,0 +1,101 @@
+﻿import { useState } from "react";
+
+export default function App() {
+  const [pdfId, setPdfId] = useState(null);
+  const [analysis, setAnalysis] = useState(null);
+  const [jobDescription, setJobDescription] = useState("");
+
+  const backend = "http://127.0.0.1:8000";
+
+  async function uploadPDF(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const form = new FormData();
+    form.append("file", file);
+
+    const res = await fetch(`${backend}/upload`, { method: "POST", body: form });
+    const data = await res.json();
+
+    if (data.pdf_id) {
+      setPdfId(data.pdf_id);
+      alert("PDF uploaded successfully!");
+    } else {
+      alert("Upload failed.");
+    }
+  }
+
+  async function analyzePDF() {
+    if (!pdfId) {
+      alert("Please upload a PDF first.");
+      return;
+    }
+
+    const payload = {
+      pdf_id: pdfId,
+      job_description: jobDescription,
+      force: true
+    };
+
+    const res = await fetch(`${backend}/analyze`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+
+    const data = await res.json();
+
+    if (data.error) {
+      alert("Analysis failed: " + JSON.stringify(data.error));
+      return;
+    }
+
+    setAnalysis(data);
+  }
+
+  return (
+    <div style={{ padding: 20, fontFamily: "Arial" }}>
+      <h1>Resume Analyzer — Upload & Match</h1>
+      <p><b>Backend status:</b> ok — backend healthy</p>
+
+      <h3>Upload a PDF</h3>
+      <input type="file" onChange={uploadPDF} />
+
+      <h3>Analyze / Job Description</h3>
+      <textarea
+        placeholder="Paste job description here"
+        value={jobDescription}
+        onChange={(e) => setJobDescription(e.target.value)}
+        rows={8}
+        cols={60}
+      />
+
+      <br /><br />
+
+      <button onClick={analyzePDF}>Analyze Uploaded / Server Sample</button>
+
+      {analysis && (
+        <div style={{ marginTop: 30 }}>
+          <h2>Job Match Result</h2>
+
+          <h3>ATS Score: {analysis.ats_score}</h3>
+          <p><b>Missing skills (job):</b> {analysis.missing_skills_job?.join(", ") || "None"}</p>
+
+          <h3>Skills found</h3>
+          <p>{analysis.skills_found?.join(", ") || "None"}</p>
+
+          <h3>Soft skills</h3>
+          <p>{analysis.soft_skills_found?.join(", ") || "None"}</p>
+
+          <h3>Suggestions</h3>
+          <ul>
+            {analysis.suggestions?.map((s, i) => <li key={i}>{s}</li>)}
+          </ul>
+
+          <h3>Raw JSON (debug)</h3>
+          <pre>{JSON.stringify(analysis, null, 2)}</pre>
+        </div>
+      )}
+    </div>
+  );
+}
