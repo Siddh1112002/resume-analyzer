@@ -24,26 +24,43 @@ export default function App() {
     setAnalysis(null);
   }
 
-  async function uploadFile() {
-    if (!file) {
-      alert("Please select a PDF file first.");
-      return;
-    }
-    setUploading(true);
-    try {
-      const fd = new FormData();
-      fd.append("file", file);
-      const res = await fetch(`${API}/upload`, { method: "POST", body: fd });
-      if (!res.ok) throw new Error(await res.text());
-      const j = await res.json();
-      setPdfId(j.pdf_id);
-      setAnalysis(null);
-    } catch (err) {
-      alert("Upload failed: " + (err.message || err));
-    } finally {
-      setUploading(false);
-    }
+async function uploadFile() {
+  if (!file) {
+    alert("Please select a PDF file first.");
+    return;
   }
+
+  setUploading(true);
+
+  try {
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("job_description", jobText || "");
+
+    const res = await fetch(`${API}/upload`, {
+      method: "POST",
+      body: formData,
+   
+    });
+
+    if (!res.ok) {
+      const txt = await res.text();
+      throw new Error(txt);
+    }
+
+    const data = await res.json();
+    console.log("UPLOAD RESPONSE:", data);
+
+    setPdfId(data.pdf_id);
+    setAnalysis(null);
+
+  } catch (err) {
+    alert("Upload failed: " + (err.message || err));
+  } finally {
+    setUploading(false);
+  }
+}
+
 
   async function runAnalysis(force = false) {
     setAnalyzing(true);

@@ -1,71 +1,67 @@
-﻿from fastapi import FastAPI, UploadFile, File, HTTPException
+﻿# C:\projects\resume-analyzer\backend\app\main.py
+from fastapi import FastAPI, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
-import os, shutil, uuid
+from fastapi.responses import JSONResponse
+from typing import Optional
+import os
 
-from .analyzer import extract_text_from_pdf, analyze_resume
+app = FastAPI(title="Resume Analyzer Backend")
 
-app = FastAPI(title="Resume Analyzer")
+# === CORS settings ===
+# Replace the RENDER_BACKEND_URL value below with your actual Render URL if needed.
+# We'll default to env var RENDER_BACKEND_URL or common dev hosts.
+RENDER_BACKEND_URL = os.getenv("RENDER_BACKEND_URL", "https://resume-analyzer-xc2a.onrender.com")
 
 origins = [
-    "http://localhost:5173",
+    "http://localhost:5173",       # local dev frontend
     "http://127.0.0.1:5173",
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-    "http://localhost:5175",
-    "http://127.0.0.1:5175"
+    RENDER_BACKEND_URL,            # deployed frontend domain (you can change to your actual Vercel URL)
+    # add any additional frontends here
 ]
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=origins,    # production: list explicit origins; for debug you may use ["*"]
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-BASE = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
-UPLOAD_DIR = os.path.join(BASE, "backend", "uploads")
-os.makedirs(UPLOAD_DIR, exist_ok=True)
+# === Helpful root & health endpoints ===
+@app.get("/", tags=["root"])
+def read_root():
+    return {"status": "ok", "message": "Resume Analyzer backend running. See /health and /docs"}
 
-@app.get("/health")
+@app.get("/health", tags=["health"])
 def health():
     return {"status": "ok", "message": "backend healthy"}
 
-class AnalyzeRequest(BaseModel):
-    pdf_id: str = None
-    file_path: str = None
-    job_description: str = ""
-    force: bool = False
-
-@app.post("/upload")
-async def upload(file: UploadFile = File(...)):
-    suffix = os.path.splitext(file.filename)[1]
-    pdf_id = f"{str(uuid.uuid4())}_{file.filename}"
-    save_path = os.path.join(UPLOAD_DIR, pdf_id)
-    with open(save_path, "wb") as out:
-        shutil.copyfileobj(file.file, out)
-    return {"pdf_id": pdf_id, "filename": file.filename, "path": save_path}
-
-    @app.get("/")
-def home():
-    return {"status": "Backend is running!"}
-
-
-@app.post("/analyze")
-def analyze(req: AnalyzeRequest):
-    if req.pdf_id:
-        path = os.path.join(UPLOAD_DIR, req.pdf_id)
-    elif req.file_path:
-        path = req.file_path
-    else:
-        raise HTTPException(status_code=400, detail="pdf_id or file_path required")
-
-    if not os.path.exists(path):
-        raise HTTPException(status_code=400, detail=f"file_path not found: {path}")
-
+# === Upload endpoint (example)
+# Make sure your frontend FormData field name is `file` and optional `job_description`.
+@app.post("/upload", tags=["upload"])
+async def upload_resume(
+    file: UploadFile = File(...),
+    job_description: Optional[str] = Form(None),
+):
+    """
+    Example upload endpoint. Adjust body to match your existing analyzer logic.
+    This accepts a multipart upload with field 'file' and optional 'job_description'.
+    """
     try:
-        result = analyze_resume(pdf_path=path, job_description=req.job_description or "")
-        return {"pdf_ref": req.pdf_id or os.path.basename(path), "analysis": result}
+        # basic example: read a few bytes to ensure upload works
+        content = await file.read()
+        size = len(content)
+
+        # TODO: replace the following with your actual analyzer processing
+        # For now return success and sizes so frontend can confirm backend is receiving file.
+        return JSONResponse(
+            status_code=200,
+            content={
+                "status": "ok",
+                "filename": file.filename,
+                "size_bytes": size,
+                "job_description": job_description or "",
+            },
+        )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        return JSONResponse(status_code=500, content={"status": "error", "detail": str(e)})
