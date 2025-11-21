@@ -47,6 +47,11 @@ async def upload(file: UploadFile = File(...)):
         shutil.copyfileobj(file.file, out)
     return {"pdf_id": pdf_id, "filename": file.filename, "path": save_path}
 
+    @app.get("/")
+def home():
+    return {"status": "Backend is running!"}
+
+
 @app.post("/analyze")
 def analyze(req: AnalyzeRequest):
     if req.pdf_id:
