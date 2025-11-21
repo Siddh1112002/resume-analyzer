@@ -2,3 +2,5 @@
 uvicorn
 PyPDF2
 python-dotenv
+
+python-multipart
