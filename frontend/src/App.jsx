@@ -1,10 +1,9 @@
-﻿import React, { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import "./App.css";
 
+// Backend base URL
+// In Vercel, set VITE_API_URL = https://your-render-backend.onrender.com
 const API = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
-
-const SAMPLE_FILE_PATH_UNIX = "/mnt/data/Siddhant_Hulle_Resume.pdf";
-const SAMPLE_FILE_PATH_WINDOWS = "C:\\projects\\resume-analyzer\\backend\\uploads\\Siddhant_Hulle_Resume.pdf";
 
 export default function App() {
   const [file, setFile] = useState(null);
@@ -15,6 +14,8 @@ export default function App() {
   const [analysis, setAnalysis] = useState(null);
 
   useEffect(() => {
+    // you can add health-check here if you want
+    // e.g., fetch(`${API}/health`).then(...)
   }, []);
 
   function onFileChange(e) {
@@ -24,50 +25,56 @@ export default function App() {
     setAnalysis(null);
   }
 
-async function uploadFile() {
-  if (!file) {
-    alert("Please select a PDF file first.");
-    return;
-  }
-
-  setUploading(true);
-
-  try {
-    const formData = new FormData();
-    formData.append("file", file);
-    formData.append("job_description", jobText || "");
-
-    const res = await fetch(`${API}/upload`, {
-      method: "POST",
-      body: formData,
-   
-    });
-
-    if (!res.ok) {
-      const txt = await res.text();
-      throw new Error(txt);
+  async function uploadFile() {
+    if (!file) {
+      alert("Please select a PDF file first.");
+      return;
     }
 
-    const data = await res.json();
-    console.log("UPLOAD RESPONSE:", data);
+    setUploading(true);
 
-    setPdfId(data.pdf_id);
-    setAnalysis(null);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("job_description", jobText || "");
 
-  } catch (err) {
-    alert("Upload failed: " + (err.message || err));
-  } finally {
-    setUploading(false);
+      const res = await fetch(`${API}/upload`, {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!res.ok) {
+        const txt = await res.text();
+        throw new Error(txt);
+      }
+
+      const data = await res.json();
+      console.log("UPLOAD RESPONSE:", data);
+
+      // backend now returns pdf_id
+      setPdfId(data.pdf_id);
+      setAnalysis(null);
+    } catch (err) {
+      console.error(err);
+      alert("Upload failed: " + (err.message || err));
+    } finally {
+      setUploading(false);
+    }
   }
-}
-
 
   async function runAnalysis(force = false) {
+    if (!pdfId) {
+      alert("Upload your resume and click 'Upload' before running analysis.");
+      return;
+    }
+
     setAnalyzing(true);
     try {
-      const payload = pdfId
-        ? { pdf_id: pdfId, job_description: jobText || "", force }
-        : { file_path: SAMPLE_FILE_PATH_UNIX, job_description: jobText || "", force };
+      const payload = {
+        pdf_id: pdfId,
+        job_description: jobText || "",
+        force,
+      };
 
       const res = await fetch(`${API}/analyze`, {
         method: "POST",
@@ -77,6 +84,7 @@ async function uploadFile() {
 
       if (!res.ok) throw new Error(await res.text());
       const j = await res.json();
+      console.log("ANALYSIS RESPONSE:", j);
       setAnalysis(j);
 
       setTimeout(() => {
@@ -84,6 +92,7 @@ async function uploadFile() {
         if (center) center.scrollIntoView({ behavior: "smooth", block: "start" });
       }, 60);
     } catch (err) {
+      console.error(err);
       alert("Analysis failed: " + (err.message || err));
     } finally {
       setAnalyzing(false);
@@ -116,7 +125,6 @@ async function uploadFile() {
       return;
     }
 
-
     try {
       await _loadScript("https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js");
     } catch (err) {
@@ -128,13 +136,13 @@ async function uploadFile() {
       const { jsPDF } = window.jspdf;
       const doc = new jsPDF({ unit: "pt", format: "a4" });
 
- 
       const pageWidth = doc.internal.pageSize.getWidth();
       const margin = 40;
       const contentWidth = pageWidth - margin * 2;
       let y = 48;
 
-      const wrap = (text, maxWidth, options = {}) => doc.splitTextToSize(String(text || ""), maxWidth, options);
+      const wrap = (text, maxWidth, options = {}) =>
+        doc.splitTextToSize(String(text || ""), maxWidth, options);
 
       doc.setFillColor(255, 255, 255);
       doc.setDrawColor(230, 230, 230);
@@ -149,40 +157,39 @@ async function uploadFile() {
       doc.text(`Generated: ${new Date().toLocaleString()}`, margin, y);
       y += 18;
 
-  
       doc.setDrawColor(230, 230, 230);
       doc.setLineWidth(0.6);
       doc.line(margin, y, pageWidth - margin, y);
       y += 18;
-
 
       const ats = analysis?.analysis?.ats_score ?? 0;
       doc.setFontSize(12);
       doc.setFont("helvetica", "bold");
       doc.text("ATS Score", margin, y);
 
-      
       doc.setFontSize(26);
       doc.setTextColor("#333333");
-      doc.text(String(ats), pageWidth - margin - 20 - doc.getTextWidth(String(ats)), y - 8);
+      doc.text(
+        String(ats),
+        pageWidth - margin - 20 - doc.getTextWidth(String(ats)),
+        y - 8
+      );
 
       y += 18;
 
- 
       const barX = margin;
       const barY = y;
       const barW = contentWidth;
       const barH = 12;
 
-
       doc.setFillColor(240, 240, 245);
       doc.roundedRect(barX, barY, barW, barH, 6, 6, "F");
       const fillW = Math.max(2, Math.min(1, ats / 100) * barW);
-      doc.setFillColor(99, 56, 255); // purple-ish
+      doc.setFillColor(99, 56, 255);
       doc.roundedRect(barX, barY, fillW, barH, 6, 6, "F");
 
       y += barH + 18;
-  
+
       const missing = (analysis?.analysis?.missing_skills_job || []).join(", ") || "None";
       doc.setFontSize(11);
       doc.setTextColor("#444");
@@ -205,20 +212,18 @@ async function uploadFile() {
         doc.text(t, margin, y);
         y += t.length * 14 + 8;
       } else {
-     
         for (let i = 0; i < suggestions.length; i++) {
           const idx = i + 1;
           const item = suggestions[i];
           const num = `${idx}. `;
           const lines = wrap(item, contentWidth - 30);
- 
+
           doc.setFont("helvetica", "bold");
           doc.text(num, margin, y);
           doc.setFont("helvetica", "normal");
           doc.text(lines, margin + 22, y);
           y += lines.length * 14 + 8;
 
-          
           if (y > doc.internal.pageSize.getHeight() - 80) {
             doc.addPage();
             y = 40;
@@ -250,11 +255,11 @@ async function uploadFile() {
           cx = margin;
           cy += 22;
         }
-      
+
         doc.setDrawColor(220);
         doc.setFillColor(245, 245, 250);
         doc.roundedRect(cx, cy - 10, w, 18, 6, 6, "F");
-   
+
         doc.setTextColor("#222");
         doc.text(s, cx + chipPaddingX, cy + 2);
         cx += w + chipGap;
@@ -277,7 +282,7 @@ async function uploadFile() {
           cx = margin;
           cy += 22;
         }
-        doc.setFillColor(255, 243, 205); 
+        doc.setFillColor(255, 243, 205);
         doc.roundedRect(cx, cy - 10, w, 18, 6, 6, "F");
         doc.setTextColor("#3a2e00");
         doc.text(s, cx + chipPaddingX, cy + 2);
@@ -294,7 +299,7 @@ async function uploadFile() {
         doc.setFontSize(10);
         doc.setFont("helvetica", "normal");
         const previewLines = wrap(preview, contentWidth);
-  
+
         for (let i = 0; i < previewLines.length; i++) {
           if (y > doc.internal.pageSize.getHeight() - 60) {
             doc.addPage();
@@ -305,12 +310,10 @@ async function uploadFile() {
         }
       }
 
-
       const footerY = doc.internal.pageSize.getHeight() - 28;
       doc.setFontSize(9);
       doc.setTextColor(120);
       doc.text("Generated by Resume Analyzer", margin, footerY);
-
 
       doc.save("resume-analysis.pdf");
     } catch (err) {
@@ -324,7 +327,6 @@ async function uploadFile() {
       <header className="topbar">
         <div>
           <h1 className="brand">Resume Analyzer</h1>
-          {}
         </div>
       </header>
 
@@ -341,13 +343,20 @@ async function uploadFile() {
           </div>
 
           <div className="pdfId" style={{ marginTop: 8 }}>
-            {pdfId ? <><strong>Uploaded:</strong> {pdfId}</> : file ? <span>Ready to upload: {file.name}</span> : <em>No file selected</em>}
-            <div style={{ marginTop: 8 }}>
-              <a href={"file:///C:/projects/resume-analyzer/backend/uploads/"} target="_blank" rel="noreferrer">Open sample folder</a>
-            </div>
+            {pdfId ? (
+              <>
+                <strong>Uploaded:</strong> {pdfId}
+              </>
+            ) : file ? (
+              <span>Ready to upload: {file.name}</span>
+            ) : (
+              <em>No file selected</em>
+            )}
           </div>
 
-          <label className="jdLabel" style={{ marginTop: 12 }}>Job description (optional)</label>
+          <label className="jdLabel" style={{ marginTop: 12 }}>
+            Job description (optional)
+          </label>
           <textarea
             placeholder="Paste job description (optional)"
             value={jobText}
@@ -359,7 +368,15 @@ async function uploadFile() {
               {analyzing ? "Analyzing…" : "Run analysis"}
             </button>
 
-            <button className="btn" onClick={() => { setFile(null); setPdfId(null); setJobText(""); setAnalysis(null); }}>
+            <button
+              className="btn"
+              onClick={() => {
+                setFile(null);
+                setPdfId(null);
+                setJobText("");
+                setAnalysis(null);
+              }}
+            >
               Reset
             </button>
 
@@ -384,13 +401,18 @@ async function uploadFile() {
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <div style={{ fontWeight: 700 }}>Missing:</div>
                 <div style={{ color: "var(--muted)" }}>
-                  {analysis?.analysis?.missing_skills_job?.length ? analysis.analysis.missing_skills_job.join(", ") : "None"}
+                  {analysis?.analysis?.missing_skills_job?.length
+                    ? analysis.analysis.missing_skills_job.join(", ")
+                    : "None"}
                 </div>
               </div>
 
               <div style={{ marginTop: 8 }}>
                 <div className="progressBar">
-                  <div className="progressFill" style={{ width: `${Math.min(100, getATSScore())}%` }} />
+                  <div
+                    className="progressFill"
+                    style={{ width: `${Math.min(100, getATSScore())}%` }}
+                  />
                 </div>
               </div>
             </div>
@@ -400,10 +422,14 @@ async function uploadFile() {
             <h4>Actionable suggestions</h4>
             {analysis?.analysis?.suggestions?.length ? (
               <ol>
-                {analysis.analysis.suggestions.map((s, i) => <li key={i}>{s}</li>)}
+                {analysis.analysis.suggestions.map((s, i) => (
+                  <li key={i}>{s}</li>
+                ))}
               </ol>
             ) : (
-              <div className="noSuggestions">No suggestions yet — run an analysis to see targeted feedback.</div>
+              <div className="noSuggestions">
+                No suggestions yet — run an analysis to see targeted feedback.
+              </div>
             )}
           </div>
         </section>
@@ -411,14 +437,26 @@ async function uploadFile() {
         <aside className="panel right">
           <h3>Skills</h3>
           <div className="badges" style={{ marginBottom: 10 }}>
-            {(analysis?.analysis?.skills_found || []).map((s, i) => <span key={i} className="pill">{s}</span>)}
-            {!((analysis?.analysis?.skills_found || []).length) && <div className="noSkills">No skills detected yet.</div>}
+            {(analysis?.analysis?.skills_found || []).map((s, i) => (
+              <span key={i} className="pill">
+                {s}
+              </span>
+            ))}
+            {!((analysis?.analysis?.skills_found || []).length) && (
+              <div className="noSkills">No skills detected yet.</div>
+            )}
           </div>
 
           <h4>Soft skills</h4>
           <div className="soft">
-            {(analysis?.analysis?.soft_skills_found || []).map((s, i) => <span key={i} className="pill softpill">{s}</span>)}
-            {!((analysis?.analysis?.soft_skills_found || []).length) && <div className="noSkills">None detected</div>}
+            {(analysis?.analysis?.soft_skills_found || []).map((s, i) => (
+              <span key={i} className="pill softpill">
+                {s}
+              </span>
+            ))}
+            {!((analysis?.analysis?.soft_skills_found || []).length) && (
+              <div className="noSkills">None detected</div>
+            )}
           </div>
         </aside>
       </main>
