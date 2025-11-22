@@ -1,1 +1,4 @@
-﻿python-multipart==0.0.20uvicornpython-multipart
+fastapi==0.115.5
+uvicorn==0.32.0
+python-multipart==0.0.20
+pydantic==2.9.2
