@@ -11,7 +11,7 @@ from openai import OpenAI
 
 app = FastAPI(title="Resume Analyzer Backend")
 
-# --- CORS (open for dev/demo; you can restrict later) ---
+# --- CORS (open for now; you can restrict to your Vercel domain later) ---
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -22,9 +22,6 @@ app.add_middleware(
 
 UPLOAD_DIR = "uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
-
-# OpenAI client (reads OPENAI_API_KEY from env)
-client = OpenAI()
 
 
 # ---------------- Root & Health ---------------- #
@@ -118,11 +115,15 @@ async def analyze_resume(req: AnalyzeRequest):
     if not req.pdf_id:
         raise HTTPException(status_code=400, detail="pdf_id is required.")
 
-    if not os.getenv("OPENAI_API_KEY"):
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key:
         raise HTTPException(
             status_code=500,
             detail="OPENAI_API_KEY is not configured on the server.",
         )
+
+    # create client only when needed, after we know api_key exists
+    client = OpenAI(api_key=api_key)
 
     pdf_path = os.path.join(UPLOAD_DIR, req.pdf_id)
     if not os.path.exists(pdf_path):
@@ -149,11 +150,11 @@ async def analyze_resume(req: AnalyzeRequest):
         "- Generate clear, practical suggestions to improve the resume for THIS job.\n\n"
         "You MUST return a single valid JSON object with this exact schema:\n"
         "{\n"
-        '  "ats_score": number (0-100),\n'
-        '  "skills_found": string[],           // technical skills inferred from resume\n'
-        '  "soft_skills_found": string[],      // soft skills inferred from resume\n'
-        '  "missing_skills_job": string[],     // skills clearly in JD but not in resume\n'
-        '  "suggestions": string[]             // 4-8 bullet-style suggestions\n'
+        '  \"ats_score\": number (0-100),\n'
+        '  \"skills_found\": string[],           // technical skills inferred from resume\n'
+        '  \"soft_skills_found\": string[],      // soft skills inferred from resume\n'
+        '  \"missing_skills_job\": string[],     // skills clearly in JD but not in resume\n'
+        '  \"suggestions\": string[]             // 4-8 bullet-style suggestions\n'
         "}\n"
         "Do not include any extra keys. Do not include explanations outside the JSON."
     )
@@ -169,7 +170,6 @@ async def analyze_resume(req: AnalyzeRequest):
 
     try:
         # 3. Call OpenAI with JSON response_format so we can parse easily
-        #    (Chat Completions JSON mode). :contentReference[oaicite:1]{index=1}
         response = client.chat.completions.create(
             model="gpt-4o-mini",
             response_format={"type": "json_object"},
@@ -183,7 +183,6 @@ async def analyze_resume(req: AnalyzeRequest):
         data = json.loads(raw_content)
 
     except Exception as e:
-        # If anything goes wrong with the AI call or JSON parsing, log & fail gracefully
         print("OpenAI error:", e)
         raise HTTPException(
             status_code=500,
