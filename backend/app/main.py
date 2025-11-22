@@ -11,7 +11,7 @@ from openai import OpenAI
 
 app = FastAPI(title="Resume Analyzer Backend")
 
-# --- CORS (open for now; you can restrict to your Vercel domain later) ---
+# === CORS (open; you can restrict to your Vercel domain later) ===
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -141,22 +141,22 @@ async def analyze_resume(req: AnalyzeRequest):
 
     # 2. Build prompt for the model
     system_prompt = (
-        "You are an expert ATS (Applicant Tracking System) resume analyzer. "
-        "Given a candidate's resume text and a job description, you:\n"
-        "- Identify the main technical skills and soft skills in the resume.\n"
-        "- Compare them with the job description.\n"
-        "- Estimate an ATS-style match score from 0 to 100.\n"
-        "- List important skills from the job description that seem missing or weak.\n"
-        "- Generate clear, practical suggestions to improve the resume for THIS job.\n\n"
-        "You MUST return a single valid JSON object with this exact schema:\n"
+        "You are an expert ATS (Applicant Tracking System) resume analyzer.\n"
+        "Your job is to read the RESUME text and the JOB DESCRIPTION and produce "
+        "a structured evaluation.\n\n"
+        "You MUST return ONLY valid JSON. No markdown, no extra text, no comments.\n\n"
+        "JSON schema:\n"
         "{\n"
-        '  \"ats_score\": number (0-100),\n'
-        '  \"skills_found\": string[],           // technical skills inferred from resume\n'
-        '  \"soft_skills_found\": string[],      // soft skills inferred from resume\n'
-        '  \"missing_skills_job\": string[],     // skills clearly in JD but not in resume\n'
-        '  \"suggestions\": string[]             // 4-8 bullet-style suggestions\n'
+        '  \"ats_score\": number,                // 0-100 match score\n'
+        '  \"skills_found\": string[],           // technical skills from resume\n'
+        '  \"soft_skills_found\": string[],      // soft skills from resume\n'
+        '  \"missing_skills_job\": string[],     // skills clearly required in JD but weak/absent in resume\n'
+        '  \"suggestions\": string[]             // 4-8 clear, practical suggestions to improve resume for THIS JD\n'
         "}\n"
-        "Do not include any extra keys. Do not include explanations outside the JSON."
+        "IMPORTANT:\n"
+        "- ats_score should be an integer between 0 and 100.\n"
+        "- Keep suggestions short, concrete, and resume-focused.\n"
+        "- Do NOT include raw resume text in the JSON.\n"
     )
 
     user_prompt = (
@@ -168,8 +168,8 @@ async def analyze_resume(req: AnalyzeRequest):
         f"{resume_text}\n"
     )
 
+    # 3. Call OpenAI with JSON response_format
     try:
-        # 3. Call OpenAI with JSON response_format so we can parse easily
         response = client.chat.completions.create(
             model="gpt-4o-mini",
             response_format={"type": "json_object"},
@@ -177,16 +177,26 @@ async def analyze_resume(req: AnalyzeRequest):
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt},
             ],
+            temperature=0.2,
         )
 
         raw_content = response.choices[0].message.content
-        data = json.loads(raw_content)
+
+        try:
+            data = json.loads(raw_content)
+        except Exception:
+            # Helpful for debugging if the model ever misbehaves
+            print("Raw AI output was not valid JSON:", raw_content)
+            raise HTTPException(
+                status_code=500,
+                detail="AI returned invalid JSON.",
+            )
 
     except Exception as e:
         print("OpenAI error:", e)
         raise HTTPException(
             status_code=500,
-            detail="AI analysis failed. Check server logs for details.",
+            detail=f"AI analysis failed: {str(e)}",
         )
 
     # 4. Normalize + add preview for the frontend PDF export
